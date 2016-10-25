@@ -22,7 +22,7 @@ class particle:
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
 		self.isodom = np.loadtxt('is_odom.dat', delimiter=' ')
 		self.mindist = np.loadtxt('min_d.dat', delimiter=' ')
-		self.a = np.array([1,0.01,1000,1000])
+		self.a = np.array([0.01,0.001,0.1,0.1])
 		self.lsr_max = 1000
 		self.zmax = 0.33
 		self.zrand = 0.33
@@ -32,7 +32,7 @@ class particle:
 		self.srt = 10
 		self.end = 170
 		self.step = 10
-		self.scat = plt.quiver(0,0,0,0)
+		self.scat = plt.quiver(0,0,1,0)
 
 	def motion_update(self, X_t, O1, O2):
 		O_d = O2 - O1
@@ -116,8 +116,8 @@ class particle:
 		self.scat.remove()
 		y = np.floor(particles[:,0] / 10)
 		x = np.floor(particles[:,1] / 10)
-		u = np.cos(particles[:,2])
-		v = np.sin(particles[:,2])
+		v = -np.cos(particles[:,2])
+		u = np.sin(particles[:,2])
 		self.scat = plt.quiver(x,y,u,v)
 		plt.pause(.0001)
 
@@ -127,14 +127,23 @@ class particle:
 			wt_vect = self.get_wt_vect(X_init, 0)
 			X_t = self.get_p_upd(wt_vect, X_init)
 		print('hi')
+		t1 = t2 = t3 = t4 = t5 = 0
 		for i in range(1,len(self.sense)):
 			O1 = self.sense[i-1]
 			O2 = self.sense[i]
+			t1 = time.time()
 			X_upd = self.motion_update(X_t, O1, O2)
+			t2 = time.time()
 			if(not self.isodom[i]):
+				t3 = time.time()
 				wt_vect = self.get_wt_vect(X_upd,i)
+				t4 = time.time()
 				X_upd = self.get_p_upd(wt_vect, X_upd)
+				t5 = time.time()
 			X_t = X_upd
+			print 'Motion Update Time: ' + str(t2 - t1)
+			print 'Get Weight Time: ' + str(t4 - t3)
+			print 'Get Update: ' + str(t5 - t4)
 			self.visualize(X_t)
 			print(i)
 		return X_t
