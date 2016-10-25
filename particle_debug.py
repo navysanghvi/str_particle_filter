@@ -15,53 +15,30 @@ class particle:
 		self.map = np.loadtxt('wean.dat', delimiter=' ')
 		self.occ = np.loadtxt('occu.dat', delimiter=' ')
 		self.unocc = np.loadtxt('unoccu.dat', delimiter=' ')
+		self.unocc_list = np.loadtxt('unoccu.dat', delimiter=' ').tolist()
 		self.unocc_corr = np.loadtxt('unoccu_corr.dat', delimiter=' ')
 		#self.X_init = np.loadtxt('part_init.dat', delimiter=' ')
-		self.num_p = 1e4
+		self.num_p = 2*1e3
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
 		self.isodom = np.loadtxt('is_odom.dat', delimiter=' ')
 		self.mindist = np.loadtxt('min_d.dat', delimiter=' ')
 		self.a = np.array([0.001,0.0001,0.1,0.1])
 		self.c_lim = 10
 		self.lsr_max = 1000
-		self.zmax = 0.33
-		self.zrand = 0.33
-		self.zhit = 0.34
-		self.sig_h = 0.1
-		self.q = 1e60
+		self.zmax = 0.25
+		self.zrand = 0.25
+		self.zhit = 0.50
+		self.sig_h = 0.01
+		self.q = 1e55
 		self.srt = 10
 		self.end = 170
-		self.step = 15
+		self.step = 10
 		plt.imshow(self.map)
 		plt.ion()
 		self.scat = plt.quiver(0,0,1,0)
 
+
 	def motion_update(self, X_t, O1, O2):
-		O_d = O2 - O1
-		t = np.sqrt(np.sum(np.power(O_d[0:2],2)))
-		r1 = np.arctan2(O_d[1], O_d[0]) - O1[2]
-		r2 = -r1 + O_d[2]
-		sig_t = np.finfo(float).eps + np.sqrt(self.a[2] * np.absolute(t) + self.a[3] * np.absolute(r1+r2))
-		sig_r1 = np.finfo(float).eps + np.sqrt(self.a[0] * np.absolute(r1) + self.a[1] * np.absolute(t))
-		sig_r2 = np.finfo(float).eps + np.sqrt(self.a[0] * np.absolute(r2) + self.a[1] * np.absolute(t))
-		X_upd = np.empty([0, 3])
-		for i in range(len(X_t)):
-			for _ in range(self.c_lim):
-				h_t = t + np.random.normal(0,sig_t)
-				h_r1 = r1 + np.random.normal(0,sig_r1)
-				h_r2 = r2 + np.random.normal(0,sig_r2)
-				th = np.reshape(X_t[i,2] + h_r1, (1,1))
-				pos = X_t[i,:2] + np.concatenate((np.cos(th), np.sin(th)), axis=1) * h_t
-				ang = np.reshape(X_t[i,2]+h_r1+h_r2, (1,1))
-				ang = (ang + (- 2*np.pi)*(ang > np.pi) + (2*np.pi)*(ang < -np.pi))
-				map_c = np.reshape(np.ceil(pos/10).astype(int), (2,))
-				if(map_c.tolist() in self.unocc.tolist()):				
-					X_upd = np.concatenate((X_upd, np.concatenate((pos, ang), axis=1)))
-					break				
-		return X_upd
-
-
-	def motion_update_relax(self, X_t, O1, O2):
 		O_d = O2 - O1
 		t = np.sqrt(np.sum(np.power(O_d[0:2],2)))
 		r1 = np.arctan2(O_d[1], O_d[0]) - O1[2]
@@ -77,7 +54,14 @@ class particle:
 		ang = np.reshape(X_t[:,2]+h_r1+h_r2, (len(X_t),1))
 		ang = (ang + (- 2*np.pi)*(ang > np.pi) + (2*np.pi)*(ang < -np.pi))
 		X_upd = np.concatenate((pos,ang), axis=1)
-		return X_upd
+		map_c = np.ceil(pos/10).astype(int).tolist()
+		count = 0;
+		for i in range(len(X_upd)):
+			if(map_c[i] in self.unocc_list):
+				X_upd[count] = X_upd[i]
+				count = count+1
+		print(count)
+		return X_upd[:count,:]
 
 
 	def get_lsr_poses(self, X_upd, L):
@@ -153,7 +137,7 @@ class particle:
 			O1 = self.sense[i-1]
 			O2 = self.sense[i]
 			t1 = time.time()
-			X_upd = self.motion_update_relax(X_t, O1, O2)
+			X_upd = self.motion_update(X_t, O1, O2)
 			t2 = time.time()
 			if(not self.isodom[i]):
 				t3 = time.time()
@@ -164,7 +148,7 @@ class particle:
 			X_t = X_upd
 			print 'Motion Update Time: ' + str(t2 - t1)
 			print 'Get Weight Time: ' + str(t4 - t3)
-			print 'Get Update: ' + str(t5 - t4)
+			#print 'Get Update: ' + str(t5 - t4)
 			self.visualize(X_t)
 			print(i)
 		return X_t
