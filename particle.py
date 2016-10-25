@@ -13,10 +13,12 @@ class particle:
 
 	def __init__(self):
 		self.map = np.loadtxt('wean.dat', delimiter=' ')
+		plt.imshow(self.map)
+		plt.ion()
 		self.occ = np.loadtxt('occu.dat', delimiter=' ')
 		self.unocc = np.loadtxt('unoccu.dat', delimiter=' ')
 		#self.X_init = np.loadtxt('part_init.dat', delimiter=' ')
-		self.num_p = 100		
+		self.num_p = 100
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
 		self.isodom = np.loadtxt('is_odom.dat', delimiter=' ')
 		self.mindist = np.loadtxt('min_d.dat', delimiter=' ')
@@ -30,7 +32,7 @@ class particle:
 		self.srt = 10
 		self.end = 170
 		self.step = 10
-
+		self.scat = plt.quiver(0,0,0,0)
 
 	def motion_update(self, X_t, O1, O2):
 		O_d = O2 - O1
@@ -111,16 +113,13 @@ class particle:
 
 
 	def visualize(self, particles):
-		imgplot = plt.imshow(self.map)
-		plt.ion()
+		self.scat.remove()
 		y = np.floor(particles[:,0] / 10)
 		x = np.floor(particles[:,1] / 10)
 		u = np.cos(particles[:,2])
 		v = np.sin(particles[:,2])
-		scat = plt.quiver(x,y,u,v)
-		plt.pause(0.5)
-		scat.remove()
-
+		self.scat = plt.quiver(x,y,u,v)
+		plt.pause(.0001)
 
 	def main(self):
 		X_init = self.initialize(self.num_p)
@@ -141,6 +140,7 @@ class particle:
 		return X_t
 
 if __name__ == "__main__":
+
 
 	p = particle()
 	p.main()
