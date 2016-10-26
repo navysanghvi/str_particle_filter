@@ -28,9 +28,9 @@ class particle:
 		self.lsr_max = 1000
 		self.zmax = 0.25
 		self.zrand = 0.25
-		self.zhit = 0.50
-		self.sig_h = 0.01
-		self.q = 1e55
+		self.sig_h = 5
+		self.zhit = 0.75
+		self.q = 1
 		self.srt = 10
 		self.end = 170
 		self.step = 10
@@ -47,9 +47,6 @@ class particle:
 		sig_t = np.finfo(float).eps + np.sqrt(self.a[2] * np.absolute(t) + self.a[3] * np.absolute(r1+r2))
 		sig_r1 = np.finfo(float).eps + np.sqrt(self.a[0] * np.absolute(r1) + self.a[1] * np.absolute(t))
 		sig_r2 = np.finfo(float).eps + np.sqrt(self.a[0] * np.absolute(r2) + self.a[1] * np.absolute(t))
-		print('heeee')		
-		print(sig_r1)
-		print(sig_r2)		
 		h_t = np.reshape(t + np.random.normal(0,sig_t,len(X_t)), (len(X_t),1))
 		h_r1 = r1 + np.random.normal(0,sig_r1,len(X_t))
 		h_r2 = r2 + np.random.normal(0,sig_r2,len(X_t))
@@ -84,7 +81,7 @@ class particle:
 				continue
 			min_c = np.floor(meas_pos[i]/10).astype(int)
 			if(min_c[0] >= len(self.mindist) or min_c[1] >= len(self.mindist[0]) 
-				or min_c[0] < 0 or min_c[1] > 0):
+				or min_c[0] < 0 or min_c[1] < 0):
 				q = q*self.zrand/self.lsr_max
 				continue
 			d = self.mindist[min_c[0], min_c[1]]
@@ -106,11 +103,13 @@ class particle:
 			min_c = np.floor(meas_pos/10).astype(int)
 			for j in range(len(meas_pos)):
 				if(min_c[j,0] >= len(self.mindist) or min_c[j,1] >= len(self.mindist[0]) 
-					or min_c[j,0] < 0 or min_c[j,1] > 0):
+					or min_c[j,0] < 0 or min_c[j,1] < 0):
 					wt_vect[j] = wt_vect[j]*self.zrand/self.lsr_max
 					continue
 				d = self.mindist[min_c[j,0], min_c[j,1]]
-				wt_vect[j] = wt_vect[j]*(self.zhit*norm.pdf(d, 0, self.sig_h) + self.zrand/self.lsr_max)
+				x = d/(2*self.sig_h**2)
+				wt_vect[j] = wt_vect[j]*(self.zhit/(1+x) + self.zrand/self.lsr_max)
+				#print(wt_vect[j])
 		return wt_vect
 
 
@@ -140,7 +139,7 @@ class particle:
 		v = -np.cos(particles[:,2])
 		u = np.sin(particles[:,2])
 		self.scat = plt.quiver(x,y,u,v)
-		plt.pause(.0001)
+		plt.pause(0.000001)
 
 	def main(self):
 		X_init = self.initialize(self.num_p)
