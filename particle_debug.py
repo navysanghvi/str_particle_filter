@@ -28,12 +28,11 @@ class particle:
 		self.a = np.array([1e-6,1e-6,0.1,0.1])
 		self.c_lim = 10
 		self.lsr_max = 1000
-		self.zrand = 0.1
-		self.zhit = 0.7
-		self.zshort = 0.1
-		self.zmax = 0.1
+		self.zrand = 0.033
+		self.zhit = 0.9
+		self.zshort = 0.033
+		self.zmax = 0.034
 		self.sig_h = 5
-		self.lam_s = 0.1
 		self.q = 1
 		self.srt = 10
 		self.end = 170
@@ -78,7 +77,6 @@ class particle:
 			if(self.unocc_dict.has_key(tuple(map_c[i]))):
 				X_upd[count] = X_upd[i]
 				count = count+1
-		print(count)
 		return X_upd[:count,:]
 
 
@@ -161,23 +159,26 @@ class particle:
 
 
 	def main(self):
+		f = h5py.File('output4.h5', 'w')
 		X_t = self.initialize(self.num_p)
 		angs = np.arange(-np.pi/2, np.pi/2 + np.pi/180, np.pi/180)
 		inds = np.arange(self.srt-1,self.end,self.step)
 		if(not self.isodom[0]):
-			wt_vect = self.get_wt_vect_raycast(X_t, 0, angs, inds)
+			wt_vect = self.get_wt_vect(X_t, 0, angs, inds)
 			X_t = self.get_p_upd(wt_vect, X_t)
 		for i in range(1,len(self.sense)):
 			O1 = self.sense[i-1]
 			O2 = self.sense[i]
 			X_upd = self.motion_update(X_t, O1, O2)
 			if(not self.isodom[i]):
-				wt_vect = self.get_wt_vect_raycast(X_upd, i, angs, inds)
+				wt_vect = self.get_wt_vect(X_upd, i, angs, inds)
 				X_upd = self.get_p_upd(wt_vect, X_upd)
 			X_t = X_upd
-			if(i%10 == 0):
-				self.visualize(X_t)
+			f.create_dataset(str(i), data=X_t)
+			#if(i%10 == 0):
+			#	self.visualize(X_t)
 			print(i)
+		f.close()
 		return X_t
 
 
