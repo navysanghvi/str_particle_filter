@@ -18,6 +18,8 @@ class particle:
 		self.unocc = np.loadtxt('unoccu.dat', delimiter=' ')
 		self.unocc_dict = {tuple(el):1 for el in self.unocc}
 		self.unocc_corr = np.loadtxt('unoccu_corr.dat', delimiter=' ')
+		self.zk_5 = np.loadtxt('Zk_5.dat', delimiter=' ')
+		self.zk_5_dict = {tuple(key):val for (key,val) in zip(self.unocc, self.zk_5)}
 		#self.X_init = np.loadtxt('part_init.dat', delimiter=' ')
 		self.num_p = 1e4
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
@@ -26,10 +28,12 @@ class particle:
 		self.a = np.array([1e-6,1e-6,0.1,0.1])
 		self.c_lim = 10
 		self.lsr_max = 1000
-		self.zrand = 0.25
-		self.zhit = 0.75
-		self.zmax = 0
+		self.zrand = 0.1
+		self.zhit = 0.7
+		self.zshort = 0.1
+		self.zmax = 0.1
 		self.sig_h = 5
+		self.lam_s = 0.1
 		self.q = 1
 		self.srt = 10
 		self.end = 170
@@ -37,6 +41,19 @@ class particle:
 		plt.imshow(self.map)
 		plt.ion()
 		self.scat = plt.quiver(0,0,1,0)
+
+
+
+	def initialize(self, num_particles):
+		ind = np.random.randint(self.unocc.shape[0], size=num_particles)
+		particles = self.unocc[ind,:]
+		# convert r,c to x,y
+		particles = (particles - 1) * 10 + 5
+		theta = np.random.rand(num_particles) * 2*np.pi
+		theta = theta + (- 2*np.pi)*(theta > np.pi)
+		particles = np.insert(particles,[2],np.transpose(theta[np.newaxis]),axis=1)
+		return particles
+
 
 
 	def motion_update(self, X_t, O1, O2):
@@ -65,28 +82,12 @@ class particle:
 		return X_upd[:count,:]
 
 
+
 	def get_lsr_poses(self, X_upd, L):
 		th = np.reshape(X_upd[:,2], (len(X_upd),1))
 		t = np.sqrt(np.sum(np.power(L[3:5] - L[0:2],2)))
 		return (X_upd[:,:2] + np.concatenate((np.cos(th), np.sin(th)), axis=1) * t)
 
-
-	def get_wt(self, x_upd, lsr_pos, L, angs, inds):
-		th = np.reshape(x_upd[2] + angs[inds], (len(inds),1))
-		t = np.reshape(L[6+inds], (len(inds),1))
-		meas_pos = lsr_pos + np.concatenate((np.cos(th), np.sin(th)), axis=1) * t
-		q = self.q
-		for i in range(len(meas_pos)):
-			if(t[i] > self.lsr_max):
-				continue
-			min_c = np.floor(meas_pos[i]/10).astype(int)
-			if(min_c[0] >= len(self.mindist) or min_c[1] >= len(self.mindist[0]) 
-				or min_c[0] < 0 or min_c[1] < 0):
-				q = q*self.zrand/self.lsr_max
-				continue
-			d = self.mindist[min_c[0], min_c[1]]
-			q = q*(self.zhit*norm.pdf(d, 0, self.sig_h) + self.zrand/self.lsr_max)
-		return q
 
 
 	def get_wt_vect(self, X_upd, i, angs, inds):
@@ -112,6 +113,31 @@ class particle:
 		return wt_vect
 
 
+
+	def get_wt_vect_raycast(self, X_upd, i, angs, inds):
+		L = self.sense[i]
+		#lsr_poses = self.get_lsr_poses(X_upd, L)
+		wt_vect = np.empty([len(X_upd),])
+		wt_vect.fill(self.q)
+		X_keys = np.ceil(X_upd[:,:2]/10).astype(int)
+		X_inds = np.around((X_upd[:,2] + np.pi)/(5*np.pi/180)).astype(int)
+		for (ind,key,wt) in zip(X_inds, X_keys, wt_vect):
+			zk_s = self.zk_5_dict[tuple(key)][ind]
+			for i in inds:
+				sum = self.zrand/self.lsr_max
+				zk = L[6+i]
+				if(zk >= self.lsr_max):
+					zk = self.lsr_max
+					sum += self.zmax
+				sum += self.zhit * (max(min((zk - zk_s - self.sig_h)/(self.sig_h**2), (zk_s - zk - self.sig_h)/(self.sig_h**2)),0))
+				if(zk_s <= zk):
+					sum += self.zshort * (2/zk_s * (1 - zk/zk_s))
+				wt = wt * sum
+		return wt_vect
+
+
+
+
 	def get_p_upd(self, wt_vect, X_upd):
 		wt_vect = wt_vect/np.sum(wt_vect)
 		dist = np.reshape(np.random.multinomial(self.num_p,wt_vect,1), (len(wt_vect),))
@@ -121,15 +147,6 @@ class particle:
 		return X_new
 
 	
-	def initialize(self, num_particles):
-		ind = np.random.randint(self.unocc.shape[0], size=num_particles)
-		particles = self.unocc[ind,:]
-		# convert r,c to x,y
-		particles = (particles - 1) * 10 + 5
-		theta = np.random.rand(num_particles) * 2*np.pi
-		particles = np.insert(particles,[2],np.transpose(theta[np.newaxis]),axis=1)
-		return particles
-
 
 	def visualize(self, particles):
 		self.scat.remove()
@@ -140,36 +157,30 @@ class particle:
 		self.scat = plt.quiver(x,y,u,v)
 		plt.pause(0.000001)
 
+
+
+
 	def main(self):
-		X_init = self.initialize(self.num_p)
+		X_t = self.initialize(self.num_p)
 		angs = np.arange(-np.pi/2, np.pi/2 + np.pi/180, np.pi/180)
 		inds = np.arange(self.srt-1,self.end,self.step)
 		if(not self.isodom[0]):
-			wt_vect = self.get_wt_vect(X_init, 0, angs, inds)
-			X_t = self.get_p_upd(wt_vect, X_init)
-		print('hi')
-		t1 = t2 = t3 = t4 = t5 = 0
+			wt_vect = self.get_wt_vect_raycast(X_t, 0, angs, inds)
+			X_t = self.get_p_upd(wt_vect, X_t)
 		for i in range(1,len(self.sense)):
 			O1 = self.sense[i-1]
 			O2 = self.sense[i]
-			t1 = time.time()
 			X_upd = self.motion_update(X_t, O1, O2)
-			t2 = time.time()
-			t3 = t4 = t5 = 0
 			if(not self.isodom[i]):
-				t3 = time.time()
-				wt_vect = self.get_wt_vect(X_upd, i, angs, inds)
-				t4 = time.time()
+				wt_vect = self.get_wt_vect_raycast(X_upd, i, angs, inds)
 				X_upd = self.get_p_upd(wt_vect, X_upd)
-				t5 = time.time()
 			X_t = X_upd
-			print 'Motion Update Time: ' + str(t2 - t1)
-			print 'Get Weight Time: ' + str(t4 - t3)
-			#print 'Get Update: ' + str(t5 - t4)
 			if(i%10 == 0):
 				self.visualize(X_t)
 			print(i)
 		return X_t
+
+
 
 if __name__ == "__main__":
 
