@@ -26,10 +26,10 @@ class particle:
 		self.a = np.array([1e-6,1e-6,0.1,0.1])
 		self.c_lim = 10
 		self.lsr_max = 1000
-		self.zmax = 0.25
 		self.zrand = 0.25
-		self.sig_h = 5
 		self.zhit = 0.75
+		self.zmax = 0
+		self.sig_h = 5
 		self.q = 1
 		self.srt = 10
 		self.end = 170
@@ -109,7 +109,6 @@ class particle:
 				d = self.mindist[min_c[j,0], min_c[j,1]]
 				x = d/(2*self.sig_h**2)
 				wt_vect[j] = wt_vect[j]*(self.zhit/(1+x) + self.zrand/self.lsr_max)
-				#print(wt_vect[j])
 		return wt_vect
 
 
@@ -167,7 +166,8 @@ class particle:
 			print 'Motion Update Time: ' + str(t2 - t1)
 			print 'Get Weight Time: ' + str(t4 - t3)
 			#print 'Get Update: ' + str(t5 - t4)
-			self.visualize(X_t)
+			if(i%10 == 0):
+				self.visualize(X_t)
 			print(i)
 		return X_t
 
