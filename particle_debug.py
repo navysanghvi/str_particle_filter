@@ -1,5 +1,13 @@
 #!/usr/bin/python
 
+#################################################################################################################################
+# Statisticl Techiniques in Robotics Assignment 3
+# Particle Filter 
+# Authors : Navyata Sanghvi, Jimit Gandhi, Eitan Babcock
+#################################################################################################################################
+
+
+
 import numpy as np
 from multiprocessing import Pool
 from scipy.spatial.distance import cdist
@@ -10,6 +18,8 @@ import matplotlib.pyplot as plt
 import random
 import time
 import h5py
+
+
 
 #Class particle loads the already pre-processed map data (unoocupied map, occupied map), sensor data and min_distance 
 # data. Initailizes all the parameters for both motion and sensor model
@@ -43,6 +53,8 @@ class particle:
 		self.scat = plt.quiver(0,0,1,0)
 
 
+
+
 # Function initialize - Initializes particles randomly all over the unoccupied cells of the map for the very first iteration.
 # Input - num_particle: Number of particles for the filter.
 # Output - Array of particles of length num_particles with position (x,y) and orientation (theta)
@@ -54,6 +66,8 @@ class particle:
 		theta = np.random.rand(num_particles) * 2*np.pi - np.pi
 		particles = np.insert(particles,[2],np.transpose(theta[np.newaxis]),axis=1)
 		return particles
+
+
 
 
 # Function motion_update - Performs motion model on the particles based on Odometry data
@@ -86,6 +100,8 @@ class particle:
 		return X_upd[:count,:]
 
 
+
+
 # Function get_lsr_poses - Converts poses of particles from odometry frame to the laser frame in world map coordinates.
 # Input - X_upd : Updated poses of particles following the motion update.
 #             L : Laser measurements which include laser sensor pose relative to odometry.
@@ -96,7 +112,9 @@ class particle:
 		return (X_upd[:,:2] + np.concatenate((np.cos(th), np.sin(th)), axis=1) * t)
 
 
-# Function get_wt_vect - Calculates the weight corresponding to each particle using sensor measurement
+
+
+# Function get_wt_vect - Calculates the weight corresponding to each particle using sensor measurement using Likelihood based range finder algorithm
 # Input - X_upd : Array of poses of particles
 #             i : Timestep or iteration number
 #          angs : An array of angles between -pi/2 and pi/2 equally spaced intervals of 10 degrees
@@ -125,7 +143,9 @@ class particle:
 		return wt_vect
 
 
-# Function get_wt_vect - Calculates the weight corresponding to each particle using sensor measurement
+
+
+# Function get_wt_vect_raycast- Calculates the weight corresponding to each particle using sensor measurement and Raycasting algorithm
 # Input - X_upd : Array of poses of particles
 #             i : Timestep or iteration number
 #          angs : An array of angles between -pi/2 and pi/2 equally spaced intervals of 10 degrees
@@ -155,7 +175,9 @@ class particle:
 
 
 
-# Function - get_p_upd : Resamples the particles according to the weights using multinomial distribution function
+
+
+# Function get_p_upd : Resamples the particles according to the weights using multinomial distribution function
 # Input - wt_vect - Array of weights corresponding to each particle
 #           X_upd - Poses of particles
 # Output - X_new - New resampled array of poses for each particle.
@@ -169,6 +191,10 @@ class particle:
 
 	
 
+
+# Function visualize : A tool for visualizing the particle filter
+# Input - particles  : Array of poses of particle
+# Output - None
 	def visualize(self, particles):
 		self.scat.remove()
 		y = np.floor(particles[:,0] / 10)
@@ -180,7 +206,9 @@ class particle:
 
 
 
-
+# Function main - Main Program that executes the particle filter
+# Input - None
+# Output - None
 	def main(self):
 		#f = h5py.File('output3_2.h5', 'w')
 		X_t = self.initialize(self.num_p)
