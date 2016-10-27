@@ -9,6 +9,7 @@ from numpy.random import multinomial
 import matplotlib.pyplot as plt
 import random
 import time
+import h5py
 
 class particle:
 
@@ -20,24 +21,22 @@ class particle:
 		self.unocc_corr = np.loadtxt('unoccu_corr.dat', delimiter=' ')
 		self.zk_5 = np.loadtxt('Zk_5.dat', delimiter=' ')
 		self.zk_5_dict = {tuple(key):val for (key,val) in zip(self.unocc, self.zk_5)}
-		#self.X_init = np.loadtxt('part_init.dat', delimiter=' ')
 		self.num_p = 1e4
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
 		self.isodom = np.loadtxt('is_odom.dat', delimiter=' ')
 		self.mindist = np.loadtxt('min_d.dat', delimiter=' ')
 		self.a = np.array([1e-6,1e-6,0.1,0.1])
-		self.c_lim = 10
 		self.lsr_max = 1000
 		self.zrand = 0.033
 		self.zhit = 0.9
 		self.zshort = 0.033
 		self.zmax = 0.034
-		self.sig_h = 5
+		self.sig_h = 50
 		self.q = 1
 		self.srt = 10
 		self.end = 170
 		self.step = 10
-		plt.imshow(self.map)
+		plt.imshow(self.map, cmap='gray')
 		plt.ion()
 		self.scat = plt.quiver(0,0,1,0)
 
@@ -48,8 +47,7 @@ class particle:
 		particles = self.unocc[ind,:]
 		# convert r,c to x,y
 		particles = (particles - 1) * 10 + 5
-		theta = np.random.rand(num_particles) * 2*np.pi
-		theta = theta + (- 2*np.pi)*(theta > np.pi)
+		theta = np.random.rand(num_particles) * 2*np.pi - np.pi
 		particles = np.insert(particles,[2],np.transpose(theta[np.newaxis]),axis=1)
 		return particles
 
@@ -115,6 +113,7 @@ class particle:
 	def get_wt_vect_raycast(self, X_upd, i, angs, inds):
 		L = self.sense[i]
 		#lsr_poses = self.get_lsr_poses(X_upd, L)
+		t = np.sqrt(np.sum(np.power(L[3:5] - L[0:2],2)))
 		wt_vect = np.empty([len(X_upd),])
 		wt_vect.fill(self.q)
 		X_keys = np.ceil(X_upd[:,:2]/10).astype(int)
@@ -123,12 +122,12 @@ class particle:
 			zk_s = self.zk_5_dict[tuple(key)][ind]
 			for i in inds:
 				sum = self.zrand/self.lsr_max
-				zk = L[6+i]
+				zk = L[6+i] + t
 				if(zk >= self.lsr_max):
 					zk = self.lsr_max
 					sum += self.zmax
-				sum += self.zhit * (max(min((zk - zk_s - self.sig_h)/(self.sig_h**2), (zk_s - zk - self.sig_h)/(self.sig_h**2)),0))
-				if(zk_s <= zk):
+				sum += self.zhit * (max(min((zk - zk_s + self.sig_h)/(self.sig_h**2), (zk_s - zk + self.sig_h)/(self.sig_h**2)),0))
+				if(zk <= zk_s):
 					sum += self.zshort * (2/zk_s * (1 - zk/zk_s))
 				wt = wt * sum
 		return wt_vect
@@ -159,26 +158,26 @@ class particle:
 
 
 	def main(self):
-		f = h5py.File('output4.h5', 'w')
+		#f = h5py.File('output3_2.h5', 'w')
 		X_t = self.initialize(self.num_p)
 		angs = np.arange(-np.pi/2, np.pi/2 + np.pi/180, np.pi/180)
 		inds = np.arange(self.srt-1,self.end,self.step)
 		if(not self.isodom[0]):
-			wt_vect = self.get_wt_vect(X_t, 0, angs, inds)
+			wt_vect = self.get_wt_vect_raycast(X_t, 0, angs, inds)
 			X_t = self.get_p_upd(wt_vect, X_t)
 		for i in range(1,len(self.sense)):
 			O1 = self.sense[i-1]
 			O2 = self.sense[i]
 			X_upd = self.motion_update(X_t, O1, O2)
 			if(not self.isodom[i]):
-				wt_vect = self.get_wt_vect(X_upd, i, angs, inds)
+				wt_vect = self.get_wt_vect_raycast(X_upd, i, angs, inds)
 				X_upd = self.get_p_upd(wt_vect, X_upd)
 			X_t = X_upd
-			f.create_dataset(str(i), data=X_t)
-			#if(i%10 == 0):
-			#	self.visualize(X_t)
+			#f.create_dataset(str(i), data=X_t)
+			if(i%10 == 0):
+				self.visualize(X_t)
 			print(i)
-		f.close()
+		#f.close()
 		return X_t
 
 

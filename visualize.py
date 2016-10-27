@@ -9,18 +9,20 @@ def visualize(particles):
 	x = np.floor(particles[:,1] / 10)
 	v = -np.cos(particles[:,2])
 	u = np.sin(particles[:,2])
-	scat = plt.quiver(x,y,u,v)
+	scat = plt.quiver(x,y,u,v, color='r')
 	plt.pause(0.0001)
 	scat.remove()
 
 if __name__ == "__main__":
-	f = h5py.File('output4.h5', 'r')
+	f = h5py.File('output3_2.h5', 'r')
 	weanmap = np.loadtxt('wean.dat', delimiter=' ')
-	plt.imshow(weanmap)
+	plt.imshow(weanmap, cmap='Greys_r')
 	plt.ion()
+	plt.pause(20)
 
-	for i in range(1,1422,10):
+	for i in range(1,2975,10):
 		p = f[str(i)][:]
 		visualize(p)
+		print i
 
 	f.close()
