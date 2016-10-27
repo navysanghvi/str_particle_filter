@@ -11,6 +11,8 @@ import random
 import time
 import h5py
 
+#Class particle loads the already pre-processed map data (unoocupied map, occupied map), sensor data and min_distance 
+# data. Initailizes all the parameters for both motion and sensor model
 class particle:
 
 	def __init__(self):
@@ -41,7 +43,9 @@ class particle:
 		self.scat = plt.quiver(0,0,1,0)
 
 
-
+# Function initialize - Initializes particles randomly all over the unoccupied cells of the map for the very first iteration.
+# Input - num_particle: Number of particles for the filter.
+# Output - Array of particles of length num_particles with position (x,y) and orientation (theta)
 	def initialize(self, num_particles):
 		ind = np.random.randint(self.unocc.shape[0], size=num_particles)
 		particles = self.unocc[ind,:]
@@ -52,7 +56,11 @@ class particle:
 		return particles
 
 
-
+# Function motion_update - Performs motion model on the particles based on Odometry data
+# Input - X_t: Array of poses of particles (x,y,theta)
+#         O1 : Odometry at time t-1.
+#         O2 : Odometry at time t.
+# Output - Returns updated poses of the particles. 
 	def motion_update(self, X_t, O1, O2):
 		O_d = O2 - O1
 		t = np.sqrt(np.sum(np.power(O_d[0:2],2)))
@@ -78,14 +86,22 @@ class particle:
 		return X_upd[:count,:]
 
 
-
+# Function get_lsr_poses - Converts poses of particles from odometry frame to the laser frame in world map coordinates.
+# Input - X_upd : Updated poses of particles following the motion update.
+#             L : Laser measurements which include laser sensor pose relative to odometry.
+# Output - X_upd: New updated pose of particles in laser frame.
 	def get_lsr_poses(self, X_upd, L):
 		th = np.reshape(X_upd[:,2], (len(X_upd),1))
 		t = np.sqrt(np.sum(np.power(L[3:5] - L[0:2],2)))
 		return (X_upd[:,:2] + np.concatenate((np.cos(th), np.sin(th)), axis=1) * t)
 
 
-
+# Function get_wt_vect - Calculates the weight corresponding to each particle using sensor measurement
+# Input - X_upd : Array of poses of particles
+#             i : Timestep or iteration number
+#          angs : An array of angles between -pi/2 and pi/2 equally spaced intervals of 10 degrees
+#          inds : array of indicesof the angs
+# Output - wt_vect: Array of weights corresponding to the weight of each particle post sensor processing.
 	def get_wt_vect(self, X_upd, i, angs, inds):
 		L = self.sense[i]
 		lsr_poses = self.get_lsr_poses(X_upd, L)
@@ -109,7 +125,12 @@ class particle:
 		return wt_vect
 
 
-
+# Function get_wt_vect - Calculates the weight corresponding to each particle using sensor measurement
+# Input - X_upd : Array of poses of particles
+#             i : Timestep or iteration number
+#          angs : An array of angles between -pi/2 and pi/2 equally spaced intervals of 10 degrees
+#          inds : array of indicesof the angs
+# Output - wt_vect: Array of weights corresponding to the weight of each particle post sensor processing.
 	def get_wt_vect_raycast(self, X_upd, i, angs, inds):
 		L = self.sense[i]
 		#lsr_poses = self.get_lsr_poses(X_upd, L)
@@ -134,7 +155,10 @@ class particle:
 
 
 
-
+# Function - get_p_upd : Resamples the particles according to the weights using multinomial distribution function
+# Input - wt_vect - Array of weights corresponding to each particle
+#           X_upd - Poses of particles
+# Output - X_new - New resampled array of poses for each particle.
 	def get_p_upd(self, wt_vect, X_upd):
 		wt_vect = wt_vect/np.sum(wt_vect)
 		dist = np.reshape(np.random.multinomial(self.num_p,wt_vect,1), (len(wt_vect),))
