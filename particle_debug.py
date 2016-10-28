@@ -17,6 +17,7 @@ from numpy.random import multinomial
 import matplotlib.pyplot as plt
 import random
 import time
+import sys
 import h5py
 
 
@@ -26,6 +27,8 @@ import h5py
 class particle:
 
 	def __init__(self):
+		self.senseFile;
+		sense.is_odomFile;
 		self.map = np.loadtxt('wean.dat', delimiter=' ')
 		self.occ = np.loadtxt('occu.dat', delimiter=' ')
 		self.unocc = np.loadtxt('unoccu.dat', delimiter=' ')
@@ -33,17 +36,17 @@ class particle:
 		self.unocc_corr = np.loadtxt('unoccu_corr.dat', delimiter=' ')
 		self.zk_5 = np.loadtxt('Zk_5.dat', delimiter=' ')
 		self.zk_5_dict = {tuple(key):val for (key,val) in zip(self.unocc, self.zk_5)}
-		self.num_p = 1e4
+		self.num_p = 1e4                                                                   # number of particles
 		self.sense = np.loadtxt('sense.dat', delimiter=' ')
 		self.isodom = np.loadtxt('is_odom.dat', delimiter=' ')
 		self.mindist = np.loadtxt('min_d.dat', delimiter=' ')
-		self.a = np.array([1e-6,1e-6,0.1,0.1])
-		self.lsr_max = 1000
-		self.zrand = 0.033
-		self.zhit = 0.9
-		self.zshort = 0.033
-		self.zmax = 0.034
-		self.sig_h = 50
+		self.a = np.array([1e-6,1e-6,0.1,0.1])                                             # parameters for motion model
+		self.lsr_max = 1000                                                                # Max Range of the laser
+		self.zrand = 0.033                                                                 # Intrinsic Parameter for sensor model to correct random measurements
+		self.zhit = 0.9                                                                    # Intrinsic Parameter for sensor model to correct local measurement noise
+		self.zshort = 0.033                                                                # Intrinsic Parameter for sensor model for unexpected objects
+		self.zmax = 0.034                                                                  # Intrinsic Parameter for sensor model for Failures
+		self.sig_h = 50                                                                    # Intrinsic Parameter for sensor model for local measurement noise
 		self.q = 1
 		self.srt = 10
 		self.end = 170
